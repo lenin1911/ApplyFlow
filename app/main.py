@@ -4,8 +4,6 @@ from sqlalchemy import text
 from app.db.session import engine
 
 app = FastAPI()
-
-
 @app.get("/")
 async def root():
     return {"message": "Placement Tracker API is running"}
