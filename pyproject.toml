@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "alembic",
     "asyncpg>=0.31.0",
     "fastapi>=0.141.1",
     "python-dotenv>=1.2.3",
@@ -21,3 +22,6 @@ placement = "placement:main"
 [build-system]
 requires = ["uv_build>=0.12.5,<0.13.0"]
 build-backend = "uv_build"
+
+[tool.uv]
+package = false
