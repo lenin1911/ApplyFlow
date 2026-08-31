@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.core.security import create_access_token
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate,UserLogin
 from app.core.security import hash_password,verify_password
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from app.core.security import decode_access_token
 
 router = APIRouter(
     prefix="/auth",
@@ -79,8 +81,45 @@ async def login(
             detail="Invalid email or password"
         )
 
+    access_token = create_access_token(existing_user.id)
+
     return {
         "message": "Login successful",
-        "user_id": existing_user.id,
-        "username": existing_user.username
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
+
+
+security = HTTPBearer()
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_db)
+):
+    token = credentials.credentials
+
+    user_id = decode_access_token(token)
+
+    result = await db.execute(
+        select(User).where(User.id == user_id)
+    )
+
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="User not found"
+        )
+
+    return user
+
+@router.get("/me")
+async def get_me(
+    current_user: User = Depends(get_current_user)
+):
+    return {
+        "id": current_user.id,
+        "username": current_user.username,
+        "email": current_user.email
     }
