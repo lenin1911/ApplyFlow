@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { applicationsApi } from '../../services/api';
 
 const companyMonograms = {
   Google:    { bg: 'rgba(66,133,244,0.14)',  color: '#60A5FA', border: 'rgba(96,165,250,0.25)',  initial: 'G' },
@@ -17,17 +18,60 @@ const statusMap = {
   Rejected:  { cls: 'badge-rejected dot-rejected',   label: 'Rejected',  optCls: 'opt-rejected'  },
 };
 
-export default function ApplicationDetailsModal({ application, onClose, onUpdateStatus }) {
+function formatDate(isoString) {
+  if (!isoString) return '—';
+  try {
+    return new Date(isoString).toLocaleDateString(undefined, {
+      year: 'numeric', month: 'short', day: 'numeric',
+    });
+  } catch {
+    return isoString;
+  }
+}
+
+export default function ApplicationDetailsModal({
+  application,
+  onClose,
+  onEdit,
+  onDelete,
+  onRefresh,
+}) {
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [localStatus, setLocalStatus]       = useState(null);
+  const [statusError, setStatusError]       = useState(null);
+
   if (!application) return null;
 
-  const mono = companyMonograms[application.company] || {
+  const displayStatus = localStatus || application.status;
+  const mono = companyMonograms[application.company_name] || {
     bg: 'rgba(255,255,255,0.06)',
     color: '#94A3B8',
     border: 'rgba(255,255,255,0.08)',
-    initial: application.company.charAt(0).toUpperCase(),
+    initial: (application.company_name || 'A').charAt(0).toUpperCase(),
   };
+  const sConf = statusMap[displayStatus] || statusMap.Applied;
 
-  const sConf = statusMap[application.status] || statusMap.Applied;
+  const handleUpdateStatus = async (newStatus) => {
+    if (newStatus === displayStatus) return;
+    setUpdatingStatus(true);
+    setStatusError(null);
+    try {
+      await applicationsApi.update(application.id, {
+        company_name: application.company_name,
+        job_title:    application.job_title,
+        status:       newStatus,
+        applied_date: application.applied_date,
+        job_url:      application.job_url || null,
+        notes:        application.notes   || null,
+      });
+      setLocalStatus(newStatus);
+      onRefresh?.();
+    } catch (err) {
+      setStatusError(err.message || 'Failed to update status');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
 
   return (
     <div className="modal-backdrop-overlay" onClick={onClose}>
@@ -48,8 +92,8 @@ export default function ApplicationDetailsModal({ application, onClose, onUpdate
               {mono.initial}
             </div>
             <div>
-              <div className="detail-company-name">{application.company}</div>
-              <div className="detail-position">{application.position}</div>
+              <div className="detail-company-name">{application.company_name}</div>
+              <div className="detail-position">{application.job_title}</div>
             </div>
           </div>
           <button type="button" className="modal-close-btn" onClick={onClose} aria-label="Close">
@@ -68,19 +112,36 @@ export default function ApplicationDetailsModal({ application, onClose, onUpdate
           </div>
           <div className="detail-field">
             <span className="detail-field-label">Applied Date</span>
-            <span className="detail-field-value">{application.appliedDate}</span>
+            <span className="detail-field-value">{formatDate(application.applied_date)}</span>
           </div>
-          <div className="detail-field">
-            <span className="detail-field-label">Location</span>
-            <span className="detail-field-value">{application.location || 'Remote / Hybrid'}</span>
-          </div>
-          <div className="detail-field">
-            <span className="detail-field-label">Department</span>
-            <span className="detail-field-value">{application.department || 'Engineering'}</span>
-          </div>
+          {application.job_url && (
+            <div className="detail-field" style={{ gridColumn: '1 / -1' }}>
+              <span className="detail-field-label">Job URL</span>
+              <a
+                href={application.job_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="detail-field-value"
+                style={{ color: 'var(--af-primary)', wordBreak: 'break-all' }}
+              >
+                {application.job_url} ↗
+              </a>
+            </div>
+          )}
+          {application.notes && (
+            <div className="detail-field" style={{ gridColumn: '1 / -1' }}>
+              <span className="detail-field-label">Notes</span>
+              <span className="detail-field-value" style={{ whiteSpace: 'pre-wrap' }}>
+                {application.notes}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Status update */}
+        {statusError && (
+          <div style={{ color: '#F87171', fontSize: 12, marginBottom: 10 }}>{statusError}</div>
+        )}
         <div className="detail-status-changer">
           <div className="status-changer-label">Update Status</div>
           <div className="status-options-row">
@@ -90,8 +151,9 @@ export default function ApplicationDetailsModal({ application, onClose, onUpdate
                 <button
                   key={st}
                   type="button"
-                  className={`status-option-btn ${conf.optCls} ${application.status === st ? 'chosen' : ''}`}
-                  onClick={() => onUpdateStatus && onUpdateStatus(application.id, st)}
+                  className={`status-option-btn ${conf.optCls} ${displayStatus === st ? 'chosen' : ''}`}
+                  onClick={() => handleUpdateStatus(st)}
+                  disabled={updatingStatus}
                 >
                   {st}
                 </button>
@@ -101,10 +163,27 @@ export default function ApplicationDetailsModal({ application, onClose, onUpdate
         </div>
 
         {/* Actions */}
-        <div className="modal-actions" style={{ marginTop: 22 }}>
-          <button type="button" className="btn-modal-cancel" onClick={onClose}>
-            Close
+        <div className="modal-actions" style={{ marginTop: 22, display: 'flex', gap: 10, justifyContent: 'space-between' }}>
+          <button
+            type="button"
+            className="btn-modal-cancel"
+            style={{ color: '#F87171', borderColor: 'rgba(248,113,113,0.3)' }}
+            onClick={() => onDelete?.(application)}
+          >
+            Delete
           </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" className="btn-modal-cancel" onClick={onClose}>
+              Close
+            </button>
+            <button
+              type="button"
+              className="btn-modal-submit"
+              onClick={() => onEdit?.(application)}
+            >
+              Edit Record
+            </button>
+          </div>
         </div>
       </div>
     </div>

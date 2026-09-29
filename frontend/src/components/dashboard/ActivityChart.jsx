@@ -1,37 +1,53 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { TrendUpIcon, AnalyticsIcon } from './DashboardIcons';
 
-export default function ActivityChart() {
+/**
+ * Build a bar chart dataset from real application objects.
+ * Groups by applied_date into N-day buckets going back `days` days from today.
+ */
+function buildChartData(applications, days) {
+  const now  = new Date();
+  const bins = [];
+
+  // Create one bucket per day
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().split('T')[0]; // YYYY-MM-DD
+    bins.push({ key, day: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), count: 0 });
+  }
+
+  const bucketMap = {};
+  bins.forEach((b) => { bucketMap[b.key] = b; });
+
+  applications.forEach((app) => {
+    if (!app.applied_date) return;
+    const appKey = new Date(app.applied_date).toISOString().split('T')[0];
+    if (bucketMap[appKey]) bucketMap[appKey].count += 1;
+  });
+
+  // Collapse to show at most ~15 data points (aggregate by groups if many days)
+  if (days <= 30) return bins;
+
+  // For 90 days group every 6 days → ~15 bars
+  const grouped = [];
+  const step = Math.ceil(bins.length / 15);
+  for (let i = 0; i < bins.length; i += step) {
+    const chunk = bins.slice(i, i + step);
+    grouped.push({
+      day: chunk[0].day,
+      count: chunk.reduce((s, b) => s + b.count, 0),
+    });
+  }
+  return grouped;
+}
+
+export default function ActivityChart({ applications = [] }) {
   const [activeFilter, setActiveFilter] = useState('30d');
   const [hoveredIndex, setHoveredIndex] = useState(null);
 
-  /* 30 days activity — bar chart data matching the image feel */
-  const activityData30 = [
-    { day: 'Aug 10', count: 2 },
-    { day: 'Aug 13', count: 1 },
-    { day: 'Aug 16', count: 4 },
-    { day: 'Aug 19', count: 2 },
-    { day: 'Aug 22', count: 6 },
-    { day: 'Aug 25', count: 3 },
-    { day: 'Aug 28', count: 8 },
-    { day: 'Aug 31', count: 5 },
-    { day: 'Sep 03', count: 11 },
-    { day: 'Sep 05', count: 7 },
-    { day: 'Sep 07', count: 9 },
-    { day: 'Sep 09', count: 6 },
-    { day: 'Sep 11', count: 4 },
-    { day: 'Sep 12', count: 8 },
-    { day: 'Sep 13', count: 5 },
-  ];
-
-  const activityData7 = activityData30.slice(-7);
-  const activityDataQ = activityData30;
-
-  const data = activeFilter === '7d'
-    ? activityData7
-    : activeFilter === '90d'
-      ? activityDataQ
-      : activityData30;
+  const days = activeFilter === '7d' ? 7 : activeFilter === '90d' ? 90 : 30;
+  const data = useMemo(() => buildChartData(applications, days), [applications, days]);
 
   // SVG dimensions
   const svgW = 640;
@@ -47,10 +63,13 @@ export default function ActivityChart() {
   const barGap   = 5;
   const barW     = Math.max(10, (graphW / barCount) - barGap);
 
-  // Show every nth label so they don't overlap
   const labelStep = barCount <= 8 ? 1 : barCount <= 15 ? 2 : 3;
-
   const yLabels = [0, Math.round(maxVal * 0.25), Math.round(maxVal * 0.5), Math.round(maxVal * 0.75), maxVal];
+
+  // Compute footer stats from real data
+  const peak = data.reduce((best, d) => (d.count > (best?.count ?? -1) ? d : best), null);
+  const totalInPeriod = data.reduce((s, d) => s + d.count, 0);
+  const avgPerWeek = days > 0 ? ((totalInPeriod / days) * 7).toFixed(1) : 0;
 
   return (
     <div className="activity-card glass-panel">
@@ -214,11 +233,15 @@ export default function ActivityChart() {
       <div className="activity-footer">
         <div className="activity-metric-pill">
           <span className="dot-indicator pulse" />
-          <span className="pill-text">Peak: Sep 03 (11 submissions)</span>
+          <span className="pill-text">
+            {peak && peak.count > 0
+              ? `Peak: ${peak.day} (${peak.count} submission${peak.count !== 1 ? 's' : ''})`
+              : 'No activity yet in this period'}
+          </span>
         </div>
         <div className="activity-metric-summary">
           <TrendUpIcon size={13} className="text-orange" />
-          <span>Avg. 5.6 applications / week</span>
+          <span>Avg. {avgPerWeek} applications / week</span>
         </div>
       </div>
     </div>

@@ -7,52 +7,55 @@ import {
   MoonIcon,
   SunIcon,
   DashboardIcon,
+  ApplicationsIcon,
+  InterviewsIcon,
+  AnalyticsIcon,
+  ProfileIcon,
+  SettingsIcon,
 } from './DashboardIcons';
 
 export default function Header({
-  userName = 'Lenin',
+  userName = 'User',
   onAddApplication,
   onSearch,
   searchValue = '',
-  notificationCount = 3,
-  currentUser,
-  onOpenAuthModal,
+  user,
   onSignOut,
   theme,
   onToggleTheme,
   activeTab = 'dashboard',
+  onTabChange,
 }) {
-  const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-
-  const notifications = [
-    { id: 1, title: 'Interview confirmed with Google – Sep 12, 10:00 AM', time: '1 hour ago', unread: true },
-    { id: 2, title: 'Amazon updated your SDE Intern status to Offer 🎉', time: '3 hours ago', unread: true },
-    { id: 3, title: 'Zoho application status changed to Rejected', time: '1 day ago', unread: false },
-  ];
 
   const tabLabels = {
     dashboard:    'Dashboard',
     applications: 'Applications',
-    companies:    'Companies',
     interviews:   'Interviews',
     analytics:    'Analytics',
-    calendar:     'Calendar',
     profile:      'Profile',
     settings:     'Settings',
   };
   const pageLabel = tabLabels[activeTab] || 'Dashboard';
 
-  const closeAll = () => {
-    setShowNotifications(false);
-    setShowUserMenu(false);
+  const tabIcons = {
+    dashboard:    <DashboardIcon size={16} className="header-breadcrumb-icon" />,
+    applications: <ApplicationsIcon size={16} className="header-breadcrumb-icon" />,
+    interviews:   <InterviewsIcon size={16} className="header-breadcrumb-icon" />,
+    analytics:    <AnalyticsIcon size={16} className="header-breadcrumb-icon" />,
+    profile:      <ProfileIcon size={16} className="header-breadcrumb-icon" />,
+    settings:     <SettingsIcon size={16} className="header-breadcrumb-icon" />,
   };
+  const activeIcon = tabIcons[activeTab] || <DashboardIcon size={16} className="header-breadcrumb-icon" />;
+
+  const displayName = user?.username || userName;
+  const displayEmail = user?.email || '';
 
   return (
     <header className="dashboard-header">
       {/* Left: Breadcrumb */}
       <div className="header-left">
-        <DashboardIcon size={16} className="header-breadcrumb-icon" />
+        {activeIcon}
         <span className="header-breadcrumb-label">{pageLabel}</span>
       </div>
 
@@ -66,7 +69,7 @@ export default function Header({
             type="text"
             placeholder="Search applications, companies..."
             value={searchValue}
-            onChange={(e) => onSearch && onSearch(e.target.value)}
+            onChange={(e) => onSearch?.(e.target.value)}
             className="header-search-input"
             aria-label="Search"
           />
@@ -86,7 +89,7 @@ export default function Header({
           <button
             type="button"
             className={`toggle-option ${theme === 'dark' ? 'active-toggle' : ''}`}
-            onClick={() => theme !== 'dark' && onToggleTheme && onToggleTheme()}
+            onClick={() => theme !== 'dark' && onToggleTheme?.()}
             aria-pressed={theme === 'dark'}
             title="Dark mode"
           >
@@ -95,7 +98,7 @@ export default function Header({
           <button
             type="button"
             className={`toggle-option ${theme === 'light' ? 'active-toggle' : ''}`}
-            onClick={() => theme !== 'light' && onToggleTheme && onToggleTheme()}
+            onClick={() => theme !== 'light' && onToggleTheme?.()}
             aria-pressed={theme === 'light'}
             title="Light mode"
           >
@@ -103,49 +106,17 @@ export default function Header({
           </button>
         </div>
 
-        {/* Notifications */}
+        {/* Notification bell (placeholder — no backend notifications yet) */}
         <div className="notification-wrapper">
           <button
             type="button"
             id="notifications-btn"
             className="btn-icon-square"
-            title="View notifications"
+            title="Notifications"
             aria-label="Notifications"
-            onClick={() => {
-              setShowNotifications(!showNotifications);
-              setShowUserMenu(false);
-            }}
           >
             <BellIcon size={17} />
-            {notificationCount > 0 && <span className="notification-indicator-dot" />}
           </button>
-
-          {showNotifications && (
-            <div className="notification-dropdown glass-dropdown">
-              <div className="dropdown-header">
-                <span className="dropdown-title">Notifications</span>
-                <span className="dropdown-badge">{notificationCount} new</span>
-              </div>
-              <div className="notification-list">
-                {notifications.map((n) => (
-                  <div key={n.id} className={`notification-item ${n.unread ? 'unread' : ''}`}>
-                    <div className="notification-dot-wrap">
-                      <span className={`status-point ${n.unread ? 'active-point' : ''}`} />
-                    </div>
-                    <div className="notification-content">
-                      <p className="notification-title">{n.title}</p>
-                      <span className="notification-time">{n.time}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="dropdown-footer">
-                <button type="button" className="dropdown-footer-btn" onClick={closeAll}>
-                  Mark all as read
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* + Add Application */}
@@ -166,44 +137,38 @@ export default function Header({
             id="user-menu-btn"
             className="header-user-btn"
             aria-label="User menu"
-            onClick={() => {
-              setShowUserMenu(!showUserMenu);
-              setShowNotifications(false);
-            }}
+            onClick={() => setShowUserMenu(!showUserMenu)}
           >
-            {currentUser?.photoURL ? (
-              <img src={currentUser.photoURL} alt={userName} className="header-avatar-img" />
-            ) : (
-              <div className="header-avatar-fallback">{userName.charAt(0).toUpperCase()}</div>
-            )}
+            <div className="header-avatar-fallback">
+              {displayName.charAt(0).toUpperCase()}
+            </div>
             <ChevronDownIcon size={12} className="header-user-chevron" />
           </button>
 
           {showUserMenu && (
-            <div className="user-menu-dropdown glass-dropdown">
+            <div
+              className="user-menu-dropdown glass-dropdown"
+              onMouseLeave={() => setShowUserMenu(false)}
+            >
               <div className="user-menu-header">
-                <span className="user-menu-name">{userName}</span>
-                <span className="user-menu-email">{currentUser?.email || 'student@applyflow.app'}</span>
+                <span className="user-menu-name">{displayName}</span>
+                <span className="user-menu-email">{displayEmail}</span>
               </div>
               <div className="dropdown-divider" />
-              {onOpenAuthModal && (
-                <button
-                  type="button"
-                  className="user-menu-item"
-                  onClick={() => { closeAll(); onOpenAuthModal(); }}
-                >
-                  Sign-in / Switch Account
-                </button>
-              )}
-              {currentUser && (
-                <button
-                  type="button"
-                  className="user-menu-item text-danger"
-                  onClick={() => { closeAll(); onSignOut && onSignOut(); }}
-                >
-                  Sign Out
-                </button>
-              )}
+              <button
+                type="button"
+                className="user-menu-item"
+                onClick={() => { setShowUserMenu(false); onTabChange?.('profile'); }}
+              >
+                View Profile
+              </button>
+              <button
+                type="button"
+                className="user-menu-item text-danger"
+                onClick={() => { setShowUserMenu(false); onSignOut?.(); }}
+              >
+                Sign Out
+              </button>
             </div>
           )}
         </div>

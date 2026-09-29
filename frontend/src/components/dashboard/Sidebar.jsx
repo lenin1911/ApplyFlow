@@ -3,10 +3,8 @@ import {
   FlowLogo,
   DashboardIcon,
   ApplicationsIcon,
-  CompaniesIcon,
   InterviewsIcon,
   AnalyticsIcon,
-  CalendarIcon,
   ProfileIcon,
   SettingsIcon,
   LogoutIcon,
@@ -16,17 +14,15 @@ import {
 export default function Sidebar({
   activeTab = 'dashboard',
   onTabChange,
-  currentUser,
+  user,
   onSignOut,
-  theme,
+  stats,
 }) {
   const mainNavItems = [
-    { id: 'dashboard',     label: 'Dashboard',     icon: <DashboardIcon size={17} /> },
-    { id: 'applications',  label: 'Applications',  icon: <ApplicationsIcon size={17} />, badge: '28' },
-    { id: 'companies',     label: 'Companies',     icon: <CompaniesIcon size={17} />, badge: '14' },
-    { id: 'interviews',    label: 'Interviews',    icon: <InterviewsIcon size={17} />, badge: '6' },
-    { id: 'analytics',    label: 'Analytics',    icon: <AnalyticsIcon size={17} /> },
-    { id: 'calendar',     label: 'Calendar',     icon: <CalendarIcon size={17} /> },
+    { id: 'dashboard',    label: 'Dashboard',    icon: <DashboardIcon size={17} /> },
+    { id: 'applications', label: 'Applications', icon: <ApplicationsIcon size={17} />, badge: stats?.total || null },
+    { id: 'interviews',   label: 'Interviews',   icon: <InterviewsIcon size={17} />, badge: stats?.Interview || null },
+    { id: 'analytics',   label: 'Analytics',   icon: <AnalyticsIcon size={17} /> },
   ];
 
   const accountNavItems = [
@@ -34,13 +30,21 @@ export default function Sidebar({
     { id: 'settings', label: 'Settings', icon: <SettingsIcon size={17} /> },
   ];
 
-  const userName  = currentUser?.displayName || 'Lenin Samuvel';
-  const userRole  = currentUser?.email ? currentUser.email.split('@')[0] : 'Student';
+  const userName = user?.username || user?.email?.split('@')[0] || 'User';
+  const userRole = user?.role || 'Member';
 
   return (
     <aside className="sidebar-container">
       {/* Brand */}
-      <div className="sidebar-brand-header">
+      <div
+        className="sidebar-brand-header"
+        onClick={() => onTabChange?.('dashboard')}
+        style={{ cursor: 'pointer' }}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onTabChange?.('dashboard')}
+        title="Go to Dashboard"
+      >
         <div className="brand-logo-lockup">
           <FlowLogo size={32} />
           <div className="brand-name-group">
@@ -62,11 +66,11 @@ export default function Sidebar({
                 type="button"
                 id={`nav-${item.id}`}
                 className={`nav-item-btn ${isActive ? 'nav-item-active' : ''}`}
-                onClick={() => onTabChange && onTabChange(item.id)}
+                onClick={() => onTabChange?.(item.id)}
               >
                 <span className="nav-item-icon">{item.icon}</span>
                 <span className="nav-item-label">{item.label}</span>
-                {item.badge && (
+                {item.badge != null && item.badge > 0 && (
                   <span className={`nav-item-badge ${isActive ? 'badge-active' : ''}`}>
                     {item.badge}
                   </span>
@@ -86,7 +90,7 @@ export default function Sidebar({
                 type="button"
                 id={`nav-${item.id}`}
                 className={`nav-item-btn ${isActive ? 'nav-item-active' : ''}`}
-                onClick={() => onTabChange && onTabChange(item.id)}
+                onClick={() => onTabChange?.(item.id)}
               >
                 <span className="nav-item-icon">{item.icon}</span>
                 <span className="nav-item-label">{item.label}</span>
@@ -98,15 +102,19 @@ export default function Sidebar({
 
       {/* Profile + Logout */}
       <div className="sidebar-profile-section">
-        <div className="profile-card-inner">
+        <div
+          className="profile-card-inner"
+          onClick={() => onTabChange?.('profile')}
+          style={{ cursor: 'pointer' }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onTabChange?.('profile')}
+          title="View profile"
+        >
           <div className="profile-avatar-wrapper">
-            {currentUser?.photoURL ? (
-              <img src={currentUser.photoURL} alt={userName} className="profile-avatar-img" />
-            ) : (
-              <div className="profile-avatar-fallback">
-                {userName.charAt(0).toUpperCase()}
-              </div>
-            )}
+            <div className="profile-avatar-fallback">
+              {userName.charAt(0).toUpperCase()}
+            </div>
             <span className="profile-status-indicator" title="Active" />
           </div>
           <div className="profile-text-group">
@@ -117,7 +125,10 @@ export default function Sidebar({
             type="button"
             className="profile-chevron-btn"
             title="Profile options"
-            onClick={() => onTabChange && onTabChange('profile')}
+            onClick={(e) => {
+              e.stopPropagation();
+              onTabChange?.('profile');
+            }}
             aria-label="View profile"
           >
             <ChevronRightIcon size={14} />

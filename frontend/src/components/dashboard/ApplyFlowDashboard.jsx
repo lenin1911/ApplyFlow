@@ -1,14 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { applicationsApi } from '../../services/api';
+
 import Sidebar from './Sidebar';
 import Header from './Header';
-import KpiCards from './KpiCards';
-import ActivityChart from './ActivityChart';
-import StatusDonutChart from './StatusDonutChart';
-import RecentApplicationsTable from './RecentApplicationsTable';
-import UpcomingInterviews from './UpcomingInterviews';
-import PlacementGoalCard from './PlacementGoalCard';
 import AddApplicationModal from './AddApplicationModal';
 import ApplicationDetailsModal from './ApplicationDetailsModal';
+
+// Dedicated tab pages
+import DashboardPage from './pages/DashboardPage';
+import ApplicationsPage from './pages/ApplicationsPage';
+import InterviewsPage from './pages/InterviewsPage';
+import AnalyticsPage from './pages/AnalyticsPage';
+import ProfilePage from './pages/ProfilePage';
+import SettingsPage from './pages/SettingsPage';
+
+// Reuse existing top-level modals for Edit and Delete
+import ApplicationModal from '../ApplicationModal';
+import DeleteConfirmModal from '../DeleteConfirmModal';
+
+const VALID_TABS = ['dashboard', 'applications', 'interviews', 'analytics', 'profile', 'settings'];
+
+function getTabFromPathname() {
+  if (typeof window === 'undefined') return 'dashboard';
+  const raw = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
+  return VALID_TABS.includes(raw) ? raw : 'dashboard';
+}
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -17,115 +34,279 @@ function getGreeting() {
   return 'Good evening';
 }
 
-export default function ApplyFlowDashboard({ currentUser, onOpenAuthModal, onSignOut }) {
-  const [activeTab, setActiveTab]               = useState('dashboard');
-  const [globalSearch, setGlobalSearch]         = useState('');
-  const [isAddModalOpen, setIsAddModalOpen]     = useState(false);
-  const [selectedApplication, setSelectedApp]  = useState(null);
-  const [theme, setTheme]                       = useState('dark');
+// Donut chart data shape from stats API
+function buildDonutData(stats) {
+  return [
+    { label: 'Applied',   count: stats?.Applied   ?? 0, color: '#38BDF8', subtleColor: 'rgba(56,189,248,0.15)' },
+    { label: 'Interview', count: stats?.Interview  ?? 0, color: '#818CF8', subtleColor: 'rgba(129,140,248,0.15)' },
+    { label: 'Offer',     count: stats?.Offer      ?? 0, color: '#10B981', subtleColor: 'rgba(16,185,129,0.15)' },
+    { label: 'Rejected',  count: stats?.Rejected   ?? 0, color: '#F43F5E', subtleColor: 'rgba(244,63,94,0.15)' },
+  ];
+}
 
-  // Apply theme to <html> element
+export default function ApplyFlowDashboard() {
+  const { user, logout } = useAuth();
+
+  // ─── UI / Route state ───
+  const [activeTab, setActiveTab] = useState(() => {
+    const fromPath = getTabFromPathname();
+    if (typeof window !== 'undefined' && (window.location.pathname === '/' || window.location.pathname === '')) {
+      const pref = localStorage.getItem('applyflow_default_tab');
+      if (pref && VALID_TABS.includes(pref)) {
+        return pref;
+      }
+    }
+    return fromPath;
+  });
+
+  const handleTabChange = useCallback((tabId) => {
+    if (!VALID_TABS.includes(tabId)) return;
+    setActiveTab(tabId);
+    const targetPath = '/' + tabId;
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState(null, '', targetPath);
+    }
+  }, []);
+
+  // Listen for browser Back/Forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      setActiveTab(getTabFromPathname());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Ensure root '/' or unknown URL is reflected as current tab
+  useEffect(() => {
+    const raw = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
+    if (!VALID_TABS.includes(raw)) {
+      window.history.replaceState(null, '', '/' + activeTab);
+    }
+  }, [activeTab]);
+
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('applyflow_theme') || 'dark';
+  });
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [currentPage, setCurrentPage]   = useState(1);
+  const PAGE_SIZE = 10;
+
+  // Apply theme to <html> and persist in localStorage
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('applyflow_theme', theme);
   }, [theme]);
 
   const handleToggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
 
-  // Initial application data matching the image
-  const [applications, setApplications] = useState([
-    {
-      id: 'app-1',
-      company:      'Google',
-      position:     'Software Engineer',
-      status:       'Interview',
-      appliedDate:  'Sep 10, 2025',
-      relativeTime: '3 days ago',
-      location:     'Mountain View / Hybrid',
-      department:   'Cloud Core Systems',
-    },
-    {
-      id: 'app-2',
-      company:      'Microsoft',
-      position:     'Backend Developer',
-      status:       'Applied',
-      appliedDate:  'Sep 08, 2025',
-      relativeTime: '5 days ago',
-      location:     'Redmond, WA',
-      department:   'Azure Distributed',
-    },
-    {
-      id: 'app-3',
-      company:      'Amazon',
-      position:     'SDE Intern',
-      status:       'Offer',
-      appliedDate:  'Sep 05, 2025',
-      relativeTime: '8 days ago',
-      location:     'Seattle, WA',
-      department:   'AWS Serverless',
-    },
-    {
-      id: 'app-4',
-      company:      'Zoho',
-      position:     'Java Developer',
-      status:       'Rejected',
-      appliedDate:  'Sep 01, 2025',
-      relativeTime: '12 days ago',
-      location:     'Chennai / On-site',
-      department:   'Zoho Creator Platform',
-    },
-    {
-      id: 'app-5',
-      company:      'Flipkart',
-      position:     'Software Engineer',
-      status:       'Applied',
-      appliedDate:  'Aug 28, 2025',
-      relativeTime: '16 days ago',
-      location:     'Bengaluru / Hybrid',
-      department:   'Commerce Platform',
-    },
-  ]);
+  // ─── Data state ───
+  const [stats, setStats]               = useState(null);
+  const [applications, setApplications] = useState([]);
+  const [loadingApps, setLoadingApps]   = useState(true);
+  const [loadingStats, setLoadingStats] = useState(true);
 
-  const handleAddApplication = (newApp) => {
-    setApplications((prev) => [newApp, ...prev]);
+  // ─── Modal state ───
+  const [isAddOpen, setIsAddOpen]           = useState(false);
+  const [viewingApp, setViewingApp]         = useState(null);  // app object for detail modal
+  const [editingApp, setEditingApp]         = useState(null);  // app object for edit modal
+  const [deletingApp, setDeletingApp]       = useState(null);  // app object for delete confirm
+
+  // ─── Debounce search ───
+  const searchTimer = useRef(null);
+  const handleSearchChange = (q) => {
+    setGlobalSearch(q);
+    setCurrentPage(1);
   };
 
-  const handleUpdateStatus = (appId, newStatus) => {
-    setApplications((prev) =>
-      prev.map((app) => (app.id === appId ? { ...app, status: newStatus } : app))
-    );
-    if (selectedApplication?.id === appId) {
-      setSelectedApp((prev) => ({ ...prev, status: newStatus }));
+  // ─── Fetch stats ───
+  const fetchStats = useCallback(async () => {
+    setLoadingStats(true);
+    try {
+      const data = await applicationsApi.getStats();
+      setStats(data);
+    } catch (err) {
+      console.warn('Failed to fetch stats:', err.message);
+    } finally {
+      setLoadingStats(false);
+    }
+  }, []);
+
+  // ─── Fetch applications ───
+  const fetchApplications = useCallback(async () => {
+    setLoadingApps(true);
+    try {
+      // Map internal filter ('ALL') to nothing (backend shows all if no status param)
+      const statusParam = statusFilter !== 'ALL' ? statusFilter.charAt(0) + statusFilter.slice(1).toLowerCase() : undefined;
+      const data = await applicationsApi.list({
+        status: statusParam,
+        company: globalSearch.trim() || undefined,
+        page: currentPage,
+        limit: PAGE_SIZE,
+      });
+      setApplications(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.warn('Failed to fetch applications:', err.message);
+      setApplications([]);
+    } finally {
+      setLoadingApps(false);
+    }
+  }, [statusFilter, globalSearch, currentPage]);
+
+  // ─── Refresh both stats + apps ───
+  const [dataVersion, setDataVersion] = useState(0);
+
+  const refreshAll = useCallback(() => {
+    fetchStats();
+    fetchApplications();
+    setDataVersion((v) => v + 1);
+  }, [fetchStats, fetchApplications]);
+
+  // Initial load
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  // Debounced apps fetch (250ms on search changes)
+  useEffect(() => {
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      fetchApplications();
+    }, 250);
+    return () => clearTimeout(searchTimer.current);
+  }, [fetchApplications]);
+
+  // ─── Status filter → reset page ───
+  const handleStatusChange = (tab) => {
+    setStatusFilter(tab);
+    setCurrentPage(1);
+  };
+
+  // ─── Handlers ───
+  const handleAddSuccess = () => {
+    setIsAddOpen(false);
+    refreshAll();
+  };
+
+  const handleEditSuccess = () => {
+    setEditingApp(null);
+    refreshAll();
+  };
+
+  const handleDeleted = () => {
+    setDeletingApp(null);
+    refreshAll();
+  };
+
+  const handleViewApp = (app) => {
+    setViewingApp(app);
+  };
+
+  const handleEditFromDetail = (app) => {
+    setViewingApp(null);
+    setEditingApp(app);
+  };
+
+  const handleDeleteFromDetail = (app) => {
+    setViewingApp(null);
+    setDeletingApp(app);
+  };
+
+  const handleEditFromTable = (app) => {
+    setEditingApp(app);
+  };
+
+  const handleDeleteFromTable = (app) => {
+    setDeletingApp(app);
+  };
+
+  const userName = user?.username || user?.email?.split('@')[0] || 'User';
+  const donutData = buildDonutData(stats);
+
+  // ─── Tab routing — renders the active page component ───
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'applications':
+        return (
+          <ApplicationsPage
+            onSelectApplication={handleViewApp}
+            onEditApplication={handleEditFromTable}
+            onDeleteApplication={handleDeleteFromTable}
+            onAddClick={() => setIsAddOpen(true)}
+            onStatsChanged={refreshAll}
+            refreshTrigger={dataVersion}
+          />
+        );
+      case 'interviews':
+        return (
+          <InterviewsPage
+            onSelectApplication={handleViewApp}
+            onEditApplication={handleEditFromTable}
+            onDeleteApplication={handleDeleteFromTable}
+            onAddClick={() => setIsAddOpen(true)}
+            onNavigateToApplications={() => handleTabChange('applications')}
+            stats={stats}
+            refreshTrigger={dataVersion}
+          />
+        );
+      case 'analytics':
+        return (
+          <AnalyticsPage
+            initialStats={stats}
+            initialApplications={applications}
+            refreshTrigger={dataVersion}
+          />
+        );
+      case 'profile':
+        return (
+          <ProfilePage
+            stats={stats}
+            onSignOut={logout}
+          />
+        );
+      case 'settings':
+        return (
+          <SettingsPage
+            theme={theme}
+            onToggleTheme={handleToggleTheme}
+          />
+        );
+      case 'dashboard':
+      default:
+        return (
+          <DashboardPage
+            user={user}
+            stats={stats}
+            applications={applications}
+            loadingApps={loadingApps}
+            globalSearch={globalSearch}
+            onSearchChange={handleSearchChange}
+            statusFilter={statusFilter}
+            onStatusChange={handleStatusChange}
+            currentPage={currentPage}
+            setCurrentPage={setCurrentPage}
+            PAGE_SIZE={PAGE_SIZE}
+            onSelectApplication={handleViewApp}
+            onEditApplication={handleEditFromTable}
+            onDeleteApplication={handleDeleteFromTable}
+            onAddClick={() => setIsAddOpen(true)}
+            donutData={donutData}
+            getGreeting={getGreeting}
+          />
+        );
     }
   };
-
-  // KPI stats
-  const addedCount = Math.max(0, applications.length - 5);
-  const kpiStats = {
-    total:      28 + addedCount,
-    interviews: 6  + applications.filter((a) => !['app-1'].includes(a.id) && a.status === 'Interview').length,
-    offers:     2  + applications.filter((a) => !['app-3'].includes(a.id) && a.status === 'Offer').length,
-    rejected:   8  + applications.filter((a) => !['app-4'].includes(a.id) && a.status === 'Rejected').length,
-  };
-
-  const statusDonutData = [
-    { label: 'Applied',   count: 14, color: '#38BDF8', subtleColor: 'rgba(56,189,248,0.15)' },
-    { label: 'Interview', count: kpiStats.interviews, color: '#818CF8', subtleColor: 'rgba(129,140,248,0.15)' },
-    { label: 'Offer',     count: kpiStats.offers,     color: '#10B981', subtleColor: 'rgba(16,185,129,0.15)' },
-    { label: 'Rejected',  count: kpiStats.rejected,   color: '#F43F5E', subtleColor: 'rgba(244,63,94,0.15)' },
-  ];
-
-  const userName = currentUser?.displayName || 'Lenin';
 
   return (
     <div className="applyflow-app-shell">
       {/* Sidebar */}
       <Sidebar
         activeTab={activeTab}
-        onTabChange={setActiveTab}
-        currentUser={currentUser}
-        onOpenAuthModal={onOpenAuthModal}
-        onSignOut={onSignOut}
-        theme={theme}
+        onTabChange={handleTabChange}
+        user={user}
+        onSignOut={logout}
+        stats={stats}
       />
 
       {/* Main area */}
@@ -133,91 +314,51 @@ export default function ApplyFlowDashboard({ currentUser, onOpenAuthModal, onSig
         {/* Top Header */}
         <Header
           userName={userName}
-          onAddApplication={() => setIsAddModalOpen(true)}
+          onAddApplication={() => setIsAddOpen(true)}
           searchValue={globalSearch}
-          onSearch={setGlobalSearch}
-          currentUser={currentUser}
-          onOpenAuthModal={onOpenAuthModal}
-          onSignOut={onSignOut}
+          onSearch={handleSearchChange}
+          user={user}
+          onSignOut={logout}
           theme={theme}
           onToggleTheme={handleToggleTheme}
           activeTab={activeTab}
+          onTabChange={handleTabChange}
         />
 
-        {/* Scrollable Dashboard Body */}
-        <main className="dashboard-scrollable-content">
-          <div className="dashboard-content-max">
-
-            {/* Greeting Band */}
-            <div className="dashboard-greeting-band">
-              <div className="greeting-left">
-                <h1 className="greeting-title">
-                  {getGreeting()}, {userName} <span className="greeting-emoji">👋</span>
-                </h1>
-                <p className="greeting-subtitle">
-                  Track your applications, stay consistent, and get placed.
-                </p>
-              </div>
-
-              {/* Quote / Motivation Card */}
-              <div className="quote-banner-card">
-                <div className="quote-banner-big-text">
-                  Small<br />Steps<br />Big<br />Opportunities
-                </div>
-                <div className="quote-banner-caption">
-                  "Consistency creates results."
-                </div>
-              </div>
-            </div>
-
-            {/* KPI Cards */}
-            <KpiCards stats={kpiStats} />
-
-            {/* Analytics: Bar Chart + Donut */}
-            <section className="dashboard-analytics-grid">
-              <div className="grid-col-activity">
-                <ActivityChart />
-              </div>
-              <div className="grid-col-donut">
-                <StatusDonutChart statusData={statusDonutData} />
-              </div>
-            </section>
-
-            {/* Operations: Table + Side Stack */}
-            <section className="dashboard-operations-grid">
-              <div className="grid-col-table">
-                <RecentApplicationsTable
-                  applications={applications}
-                  onSelectApplication={(app) => setSelectedApp(app)}
-                  onAddClick={() => setIsAddModalOpen(true)}
-                />
-              </div>
-
-              <div className="grid-col-side-stack">
-                <UpcomingInterviews />
-                <PlacementGoalCard
-                  current={12 + addedCount}
-                  target={20}
-                />
-              </div>
-            </section>
-
-          </div>
-        </main>
+        {/* Dashboard Body */}
+        {renderTabContent()}
       </div>
 
       {/* Add Application Modal */}
       <AddApplicationModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onAdd={handleAddApplication}
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        onSuccess={handleAddSuccess}
       />
 
-      {/* View/Edit Application Modal */}
+      {/* View/Detail Modal */}
       <ApplicationDetailsModal
-        application={selectedApplication}
-        onClose={() => setSelectedApp(null)}
-        onUpdateStatus={handleUpdateStatus}
+        application={viewingApp}
+        onClose={() => setViewingApp(null)}
+        onEdit={handleEditFromDetail}
+        onDelete={handleDeleteFromDetail}
+        onRefresh={refreshAll}
+      />
+
+      {/* Edit Modal — reuses the proven top-level ApplicationModal */}
+      <ApplicationModal
+        isOpen={Boolean(editingApp)}
+        application={editingApp}
+        onClose={() => setEditingApp(null)}
+        onSuccess={handleEditSuccess}
+      />
+
+      {/* Delete Confirm Modal — reuses the proven top-level DeleteConfirmModal */}
+      <DeleteConfirmModal
+        isOpen={Boolean(deletingApp)}
+        application={deletingApp}
+        onClose={() => setDeletingApp(null)}
+        onDeleted={handleDeleted}
       />
     </div>
   );

@@ -80,7 +80,7 @@ export default function Dashboard({ onNavigateToApplications }) {
           </p>
           <h1>Good day, {firstName}.</h1>
           <p className="intro-sub">
-            Real-time pipeline metrics connected directly to your FastAPI backend.
+            Real-time pipeline metrics and tracking for your job search.
           </p>
         </div>
         <button
@@ -98,7 +98,7 @@ export default function Dashboard({ onNavigateToApplications }) {
           <span>Total applications</span>
           <strong>{stats.total || 0}</strong>
           <small>
-            <b>Live backend count</b>
+            <b>Live pipeline count</b>
           </small>
           <div className="sparkline">
             <span style={{ height: '9px' }} />
@@ -203,7 +203,7 @@ export default function Dashboard({ onNavigateToApplications }) {
       <div className="section-heading">
         <div>
           <h2>Recent Applications</h2>
-          <p>Latest active entries retrieved directly from the database.</p>
+          <p>Latest active entries in your pipeline.</p>
         </div>
         <button
           type="button"
@@ -269,11 +269,10 @@ export default function Dashboard({ onNavigateToApplications }) {
         <div className="tip-card">
           <div className="tip-icon">✦</div>
           <div>
-            <p className="eyebrow">BACKEND PIPELINE</p>
-            <h3>FastAPI & PostgreSQL Synced</h3>
+            <p className="eyebrow">CAREER PIPELINE</p>
+            <h3>Live Status Synced</h3>
             <p>
-              Every action directly performs atomic operations against your PostgreSQL database
-              via asynchronous SQLAlchemy sessions.
+              Every action directly updates your pipeline tracking in real time.
             </p>
           </div>
           <button type="button" onClick={onNavigateToApplications}>

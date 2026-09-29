@@ -35,6 +35,9 @@ export function AuthProvider({ children }) {
 
     const handleUnauthorized = () => {
       setUser(null);
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', '/');
+      }
     };
 
     window.addEventListener('auth:unauthorized', handleUnauthorized);
@@ -65,6 +68,9 @@ export function AuthProvider({ children }) {
   const logout = () => {
     removeToken();
     setUser(null);
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', '/');
+    }
   };
 
   const value = {

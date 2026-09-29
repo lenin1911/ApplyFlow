@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   SearchIcon,
   EyeIcon,
@@ -6,36 +6,57 @@ import {
   TrashIcon,
 } from './DashboardIcons';
 
-export default function RecentApplications({ applications, onSelectApplication, onAddClick }) {
-  const [filterStatus, setFilterStatus] = useState('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
+// Status badge styling
+const statusStyles = {
+  Interview: { badgeClass: 'badge-interview', dotClass: 'dot-interview', text: 'Interview' },
+  Applied:   { badgeClass: 'badge-applied',   dotClass: 'dot-applied',   text: 'Applied'   },
+  Rejected:  { badgeClass: 'badge-rejected',  dotClass: 'dot-rejected',  text: 'Rejected'  },
+  Offer:     { badgeClass: 'badge-offer',     dotClass: 'dot-offer',     text: 'Offer'     },
+};
 
-  // Status badge styling
-  const statusStyles = {
-    Interview: { badgeClass: 'badge-interview', dotClass: 'dot-interview', text: 'Interview' },
-    Applied:   { badgeClass: 'badge-applied',   dotClass: 'dot-applied',   text: 'Applied'   },
-    Rejected:  { badgeClass: 'badge-rejected',  dotClass: 'dot-rejected',  text: 'Rejected'  },
-    Offer:     { badgeClass: 'badge-offer',     dotClass: 'dot-offer',     text: 'Offer'     },
+function formatDate(isoString) {
+  if (!isoString) return '—';
+  try {
+    return new Date(isoString).toLocaleDateString(undefined, {
+      month: 'short', day: 'numeric', year: 'numeric',
+    });
+  } catch {
+    return isoString;
+  }
+}
+
+function getMonogram(companyName) {
+  const known = {
+    Google:    { bg: 'rgba(66,133,244,0.12)',  color: '#60A5FA', border: 'rgba(96,165,250,0.25)' },
+    Microsoft: { bg: 'rgba(0,120,215,0.12)',   color: '#38BDF8', border: 'rgba(56,189,248,0.25)' },
+    Zoho:      { bg: 'rgba(244,63,94,0.10)',   color: '#FB7185', border: 'rgba(251,113,133,0.22)' },
+    Amazon:    { bg: 'rgba(245,158,11,0.12)',  color: '#FBBF24', border: 'rgba(251,191,36,0.22)' },
+    Stripe:    { bg: 'rgba(129,140,248,0.12)', color: '#818CF8', border: 'rgba(129,140,248,0.22)' },
+    Meta:      { bg: 'rgba(24,119,242,0.12)',  color: '#60A5FA', border: 'rgba(96,165,250,0.22)' },
+    Flipkart:  { bg: 'rgba(249,115,22,0.12)',  color: '#FB923C', border: 'rgba(251,146,60,0.22)' },
   };
-
-  // Company monogram config
-  const companyMonograms = {
-    Google:    { bg: 'rgba(66,133,244,0.12)',  color: '#60A5FA', border: 'rgba(96,165,250,0.25)',  initial: 'G' },
-    Microsoft: { bg: 'rgba(0,120,215,0.12)',   color: '#38BDF8', border: 'rgba(56,189,248,0.25)',  initial: 'M' },
-    Zoho:      { bg: 'rgba(244,63,94,0.10)',   color: '#FB7185', border: 'rgba(251,113,133,0.22)', initial: 'Z' },
-    Amazon:    { bg: 'rgba(245,158,11,0.12)',  color: '#FBBF24', border: 'rgba(251,191,36,0.22)',  initial: 'A' },
-    Stripe:    { bg: 'rgba(129,140,248,0.12)', color: '#818CF8', border: 'rgba(129,140,248,0.22)', initial: 'S' },
-    Meta:      { bg: 'rgba(24,119,242,0.12)',  color: '#60A5FA', border: 'rgba(96,165,250,0.22)',  initial: 'M' },
-    Flipkart:  { bg: 'rgba(249,115,22,0.12)',  color: '#FB923C', border: 'rgba(251,146,60,0.22)',  initial: 'F' },
+  const conf = known[companyName] || {
+    bg: 'rgba(255,255,255,0.06)',
+    color: '#94A3B8',
+    border: 'rgba(255,255,255,0.08)',
   };
+  return { ...conf, initial: (companyName || 'A').charAt(0).toUpperCase() };
+}
 
-  const filteredApps = applications.filter((app) => {
-    const matchStatus = filterStatus === 'ALL' || app.status.toUpperCase() === filterStatus;
-    const matchSearch =
-      app.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.position.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchStatus && matchSearch;
-  });
+export default function RecentApplications({
+  applications = [],
+  loading = false,
+  searchQuery = '',
+  onSearchChange,
+  statusFilter = 'ALL',
+  onStatusChange,
+  onSelectApplication,
+  onEditApplication,
+  onDeleteApplication,
+  onAddClick,
+  totalCount,
+}) {
+  const filteredApps = applications; // filtering is already done server-side via parent
 
   return (
     <div className="recent-apps-card glass-panel">
@@ -43,7 +64,7 @@ export default function RecentApplications({ applications, onSelectApplication, 
       <div className="apps-table-header">
         <div className="apps-header-left">
           <h3 className="section-title">Recent Applications</h3>
-          <span className="count-pill">{filteredApps.length} entries</span>
+          <span className="count-pill">{totalCount ?? filteredApps.length} entries</span>
         </div>
         <div className="apps-header-actions">
           {/* Status filter tabs */}
@@ -54,8 +75,8 @@ export default function RecentApplications({ applications, onSelectApplication, 
                 type="button"
                 id={`status-tab-${tab.toLowerCase()}`}
                 role="tab"
-                className={`status-tab-btn ${filterStatus === tab ? 'active' : ''}`}
-                onClick={() => setFilterStatus(tab)}
+                className={`status-tab-btn ${statusFilter === tab ? 'active' : ''}`}
+                onClick={() => onStatusChange?.(tab)}
               >
                 {tab === 'ALL' ? 'All' : tab.charAt(0) + tab.slice(1).toLowerCase()}
               </button>
@@ -70,12 +91,14 @@ export default function RecentApplications({ applications, onSelectApplication, 
               type="text"
               placeholder="Filter company or role..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => onSearchChange?.(e.target.value)}
               className="table-search-input"
             />
           </div>
 
-          <button type="button" className="view-all-link">View All</button>
+          <button type="button" className="view-all-link" onClick={onAddClick}>
+            + Add New
+          </button>
         </div>
       </div>
 
@@ -92,7 +115,13 @@ export default function RecentApplications({ applications, onSelectApplication, 
             </tr>
           </thead>
           <tbody>
-            {filteredApps.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan="5" className="table-empty-row">
+                  Loading applications…
+                </td>
+              </tr>
+            ) : filteredApps.length === 0 ? (
               <tr>
                 <td colSpan="5" className="table-empty-row">
                   No applications match your criteria.
@@ -101,18 +130,13 @@ export default function RecentApplications({ applications, onSelectApplication, 
             ) : (
               filteredApps.map((app) => {
                 const conf = statusStyles[app.status] || statusStyles.Applied;
-                const mono = companyMonograms[app.company] || {
-                  bg: 'rgba(255,255,255,0.06)',
-                  color: '#94A3B8',
-                  border: 'rgba(255,255,255,0.08)',
-                  initial: app.company.charAt(0).toUpperCase(),
-                };
+                const mono = getMonogram(app.company_name);
 
                 return (
                   <tr
                     key={app.id}
                     className="app-table-row"
-                    onClick={() => onSelectApplication && onSelectApplication(app)}
+                    onClick={() => onSelectApplication?.(app)}
                   >
                     {/* Company */}
                     <td className="col-company">
@@ -128,16 +152,28 @@ export default function RecentApplications({ applications, onSelectApplication, 
                           {mono.initial}
                         </div>
                         <div className="company-name-group">
-                          <span className="company-name-text">{app.company}</span>
-                          <span className="company-location-sub">{app.location || 'Remote / Hybrid'}</span>
+                          <span className="company-name-text">{app.company_name}</span>
+                          {app.job_url ? (
+                            <a
+                              href={app.job_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="company-location-sub"
+                              onClick={(e) => e.stopPropagation()}
+                              style={{ color: 'var(--af-primary)' }}
+                            >
+                              View posting ↗
+                            </a>
+                          ) : (
+                            <span className="company-location-sub">—</span>
+                          )}
                         </div>
                       </div>
                     </td>
 
                     {/* Position */}
                     <td className="col-position">
-                      <span className="position-text">{app.position}</span>
-                      <span className="dept-tag">{app.department || 'Engineering'}</span>
+                      <span className="position-text">{app.job_title}</span>
                     </td>
 
                     {/* Status */}
@@ -150,8 +186,7 @@ export default function RecentApplications({ applications, onSelectApplication, 
 
                     {/* Date */}
                     <td className="col-date">
-                      <span className="date-primary">{app.appliedDate}</span>
-                      <span className="date-relative">{app.relativeTime || 'Recently'}</span>
+                      <span className="date-primary">{formatDate(app.applied_date)}</span>
                     </td>
 
                     {/* Actions: View / Edit / Delete */}
@@ -165,7 +200,7 @@ export default function RecentApplications({ applications, onSelectApplication, 
                           id={`view-btn-${app.id}`}
                           className="btn-table-action"
                           title="View application"
-                          onClick={() => onSelectApplication && onSelectApplication(app)}
+                          onClick={() => onSelectApplication?.(app)}
                         >
                           <EyeIcon size={14} />
                         </button>
@@ -174,7 +209,7 @@ export default function RecentApplications({ applications, onSelectApplication, 
                           id={`edit-btn-${app.id}`}
                           className="btn-table-action"
                           title="Edit application"
-                          onClick={() => onSelectApplication && onSelectApplication(app)}
+                          onClick={() => onEditApplication?.(app)}
                         >
                           <EditIcon size={14} />
                         </button>
@@ -183,7 +218,7 @@ export default function RecentApplications({ applications, onSelectApplication, 
                           id={`delete-btn-${app.id}`}
                           className="btn-table-action danger"
                           title="Delete application"
-                          onClick={() => {/* handled by parent */}}
+                          onClick={() => onDeleteApplication?.(app)}
                         >
                           <TrashIcon size={14} />
                         </button>
@@ -200,7 +235,7 @@ export default function RecentApplications({ applications, onSelectApplication, 
       {/* Footer */}
       <div className="table-footer-bar">
         <span className="footer-subtext">
-          Showing {filteredApps.length} of {applications.length} applications
+          Showing {filteredApps.length} of {totalCount ?? filteredApps.length} applications
         </span>
         <button type="button" className="btn-secondary-link" onClick={onAddClick}>
           + Add New Application

@@ -99,7 +99,7 @@ export default function LoginPage() {
             <Brand />
           </div>
           <div className="auth-heading">
-            <p className="eyebrow">FASTAPI BACKEND AUTHENTICATION</p>
+            <p className="eyebrow">ACCOUNT ACCESS</p>
             <h2>{mode === 'login' ? 'Good to see you again.' : 'Start your next chapter.'}</h2>
             <p>
               {mode === 'login'
@@ -191,7 +191,7 @@ export default function LoginPage() {
           )}
 
           <p className="terms">
-            Directly authenticated with your local FastAPI backend & PostgreSQL.
+            Your application data is kept private and secure.
           </p>
         </div>
       </section>

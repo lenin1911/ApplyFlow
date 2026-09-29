@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
+const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL) || 'http://127.0.0.1:8000';
 
 const TOKEN_KEY = 'applyflow_auth_token';
 
@@ -77,12 +77,15 @@ export const authApi = {
 };
 
 export const applicationsApi = {
-  list: ({ status, company, page = 1, limit = 10 } = {}) => {
+  list: ({ status, company, page = 1, limit = 10, sort_by, sort_order } = {}) => {
     const params = new URLSearchParams();
-    if (status && status !== 'All') params.append('status', status);
+    if (status && status !== 'All' && status !== 'ALL') params.append('status', status);
     if (company && company.trim()) params.append('company', company.trim());
     if (page) params.append('page', page);
     if (limit) params.append('limit', limit);
+    // sort_by / sort_order are accepted by the backend when added via migration;
+    // currently the backend sorts by applied_date DESC by default.
+    // These params are passed through for forward compatibility.
 
     const queryString = params.toString();
     return request(`/applications/${queryString ? `?${queryString}` : ''}`, {
