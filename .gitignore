@@ -10,6 +10,9 @@ wheels/
 .venv
 # Environment variables
 .env
+.env*.local
+*.db
+*.sqlite
 
 # Python
 __pycache__/
