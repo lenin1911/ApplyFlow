@@ -251,9 +251,12 @@ export default function ApplicationsPage({
               </thead>
               <tbody>
                 {loading ? (
-                  <tr>
-                    <td colSpan="6" className="table-empty-row">
-                      Loading applications…
+                  <tr className="table-loading-row">
+                    <td colSpan="6">
+                      <div className="table-spinner-wrap">
+                        <div className="table-spinner" />
+                        <span className="table-loading-text">Loading applications…</span>
+                      </div>
                     </td>
                   </tr>
                 ) : sortedApplications.length === 0 ? (

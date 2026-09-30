@@ -100,8 +100,13 @@ export default function ApplicationModal({
   };
 
   return (
-    <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal-dialog">
+    <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()} role="presentation">
+      <div
+        className="modal-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="app-modal-title"
+      >
         <div className="modal-header">
           <div>
             <span className="eyebrow">{isEdit ? 'UPDATE RECORD' : 'NEW OPPORTUNITY'}</span>

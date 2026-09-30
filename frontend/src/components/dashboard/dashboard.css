@@ -702,7 +702,9 @@
   font-family: inherit;
 }
 .user-menu-item:hover { background: rgba(255,255,255,0.05); color: var(--af-text-primary); }
+[data-theme="light"] .user-menu-item:hover { background: rgba(0,0,0,0.06); }
 .user-menu-item.text-danger:hover { background: rgba(244,63,94,0.10); color: #F43F5E; }
+[data-theme="light"] .user-menu-item.text-danger:hover { background: rgba(225,29,72,0.08); }
 
 /* ==========================================================================
    DASHBOARD GREETING BAND (inside scrollable)
@@ -1269,10 +1271,25 @@
 .btn-secondary-link:hover { opacity: 0.75; }
 .table-empty-row {
   text-align: center;
-  padding: 28px 16px;
+  padding: 32px 16px;
   color: var(--af-text-tertiary);
   font-size: 13px;
 }
+
+/* Loading spinner for tables */
+.table-loading-row td { text-align: center; padding: 40px 16px; }
+.table-spinner-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.table-spinner {
+  width: 28px;
+  height: 28px;
+  border: 2.5px solid var(--af-border-medium);
+  border-top-color: var(--af-primary);
+  border-radius: 50%;
+  animation: af-spin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes af-spin { to { transform: rotate(360deg); } }
+.table-loading-text { font-size: 13px; color: var(--af-text-tertiary); }
 
 /* ==========================================================================
    UPCOMING INTERVIEWS CARD
@@ -1513,8 +1530,10 @@
   cursor: pointer;
   font-size: 16px;
   transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 .modal-close-btn:hover { background: var(--af-bg-surface-hover); color: var(--af-text-primary); }
+[data-theme="light"] .modal-close-btn { background: rgba(0,0,0,0.05); }
 
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .form-group { display: flex; flex-direction: column; gap: 6px; }
@@ -1597,8 +1616,19 @@
   font-family: inherit;
   box-shadow: var(--af-shadow-orange);
   transition: all 0.16s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
-.btn-modal-submit:hover { box-shadow: 0 6px 20px rgba(249,115,22,0.45); transform: translateY(-1px); }
+.btn-modal-submit:hover:not(:disabled) { box-shadow: 0 6px 20px rgba(249,115,22,0.45); transform: translateY(-1px); }
+.btn-modal-submit:active { transform: translateY(0); }
+.btn-modal-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+.btn-modal-cancel:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Application Details Modal */
 .app-details-modal {
@@ -1652,6 +1682,57 @@
 .status-option-btn.opt-offer.chosen     { background: var(--af-status-offer-bg); }
 .status-option-btn.opt-rejected  { color: var(--af-status-rejected);  border-color: var(--af-status-rejected-border); }
 .status-option-btn.opt-rejected.chosen  { background: var(--af-status-rejected-bg); }
+
+/* ==========================================================================
+   MISSING UTILITY CLASSES — ApplicationsPage action buttons
+   ========================================================================== */
+
+/* Row action buttons container */
+.row-action-btns { display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
+
+/* Action icon buttons */
+.action-icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--af-radius-sm);
+  border: 1px solid var(--af-border-subtle);
+  background: rgba(255,255,255,0.03);
+  color: var(--af-text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+[data-theme="light"] .action-icon-btn { background: rgba(0,0,0,0.04); }
+.action-icon-btn:hover { background: var(--af-bg-surface-hover); color: var(--af-text-primary); border-color: var(--af-border-medium); }
+.action-icon-btn.view-btn:hover  { color: var(--af-status-applied); border-color: var(--af-status-applied-border); }
+.action-icon-btn.edit-btn:hover  { color: var(--af-status-interview); border-color: var(--af-status-interview-border); }
+.action-icon-btn.delete-btn:hover { background: rgba(244,63,94,0.09); color: #F43F5E; border-color: rgba(244,63,94,0.22); }
+
+/* position-title-text alias */
+.position-title-text { font-size: 13px; color: var(--af-text-primary); display: block; }
+
+/* date-text alias */
+.date-text { font-size: 12.5px; color: var(--af-text-secondary); }
+
+/* table-link-btn */
+.table-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--af-primary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: opacity 0.15s;
+  padding: 2px 0;
+}
+.table-link-btn:hover { opacity: 0.75; }
+
+/* col-link */
+.col-link { width: 8%; }
 
 /* ==========================================================================
    SCROLLBAR STYLING
@@ -1835,8 +1916,10 @@
   border-radius: var(--af-radius-sm);
   color: var(--af-text-primary);
   font-size: 12px;
+  font-family: inherit;
   cursor: pointer;
   outline: none;
+  transition: border-color 0.15s ease;
 }
 
 .select-filter-compact:focus {
@@ -1848,6 +1931,11 @@
   color: #F8FAFC;
 }
 
+[data-theme="light"] .select-filter-compact {
+  background: #FFFFFF;
+  color: #0F172A;
+  border-color: rgba(0,0,0,0.15);
+}
 [data-theme="light"] .select-filter-compact option {
   background: #FFFFFF;
   color: #0F172A;
@@ -2491,4 +2579,178 @@
   color: var(--af-text-primary);
 }
 
+/* ==========================================================================
+   RESPONSIVE — tablet and mobile breakpoints
+   ========================================================================== */
 
+@media (max-width: 1200px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .dashboard-analytics-grid { grid-template-columns: 1fr; }
+  .grid-col-donut { order: -1; }
+  .dashboard-operations-grid { grid-template-columns: 1fr; }
+  .grid-col-side-stack { flex-direction: row; flex-wrap: wrap; }
+  .grid-col-side-stack > * { flex: 1 1 260px; }
+}
+
+@media (max-width: 900px) {
+  .sidebar-container {
+    width: 60px;
+    min-width: 60px;
+    padding: 14px 8px;
+    overflow: hidden;
+  }
+  .sidebar-brand-header { padding-bottom: 12px; }
+  .brand-name-group { display: none; }
+  .nav-group-label { display: none; }
+  .nav-item-label { display: none; }
+  .nav-item-badge { display: none; }
+  .profile-text-group { display: none; }
+  .profile-chevron-btn { display: none; }
+  .profile-card-inner { justify-content: center; }
+  .sidebar-logout-btn span { display: none; }
+  .sidebar-logout-btn { justify-content: center; padding: 8px; }
+  .sidebar-version-footer { display: none; }
+  .nav-item-btn { padding: 8px; justify-content: center; }
+  .dashboard-header { padding: 0 14px; }
+  .header-search-shortcut { display: none; }
+  .header-search-box { width: 180px; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .funnel-stats-row { grid-template-columns: repeat(2, 1fr); }
+  .profile-page-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .sidebar-container { display: none; }
+  .applyflow-app-shell { flex-direction: column; }
+  .applyflow-main-viewport { height: auto; }
+  .dashboard-scrollable-content { padding: 16px 14px 40px; }
+  .dashboard-header { padding: 0 14px; }
+  .header-search-box { display: none; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .kpi-value { font-size: 26px; }
+  .dashboard-analytics-grid { grid-template-columns: 1fr; }
+  .dashboard-operations-grid { grid-template-columns: 1fr; }
+  .btn-primary-add span { display: none; }
+  .btn-primary-add { padding: 7px 10px; }
+  .greeting-title { font-size: 18px; }
+  .quote-banner-card { display: none; }
+  .filter-controls-top { flex-direction: column; align-items: stretch; }
+  .filter-right-inputs { flex-wrap: wrap; }
+  .full-search-box { min-width: 0; width: 100%; }
+  .status-tabs { flex-wrap: wrap; }
+  .page-header-banner { flex-direction: column; align-items: stretch; }
+  .table-responsive-container { overflow-x: auto; }
+  .apps-table { min-width: 580px; }
+  .funnel-stats-row { grid-template-columns: repeat(2, 1fr); }
+  .performance-insights-grid { grid-template-columns: 1fr; }
+  .interview-summary-grid { grid-template-columns: 1fr; }
+  .profile-page-grid { grid-template-columns: 1fr; }
+  .grid-col-side-stack { flex-direction: column; }
+  .add-app-modal { padding: 20px; margin: 12px; }
+  .form-grid { grid-template-columns: 1fr; }
+}
+
+/* ==========================================================================
+   LIGHT MODE — company monogram fallback fix (low-opacity white is invisible)
+   ========================================================================== */
+[data-theme="light"] .company-monogram {
+  /* Override the inline rgba(255,255,255,0.06) fallback for unknown companies */
+  border-color: rgba(0,0,0,0.10) !important;
+}
+/* When the monogram has the dark fallback background, replace in light mode */
+[data-theme="light"] .company-monogram[style*="rgba(255,255,255,0.06)"] {
+  background: rgba(0,0,0,0.06) !important;
+  color: #475569 !important;
+}
+
+/* ==========================================================================
+   OVERLAY / MODAL-DIALOG theme bridging
+   When rendered inside .applyflow-app-shell, the old MONOLOG .overlay /
+   .modal-dialog / .modal-form classes use --db-* tokens that are only
+   available on .dashboard[data-theme]. Bridge them to the html[data-theme].
+   ========================================================================== */
+.applyflow-app-shell [data-theme="dark"] .modal-dialog,
+[data-theme="dark"] .modal-dialog {
+  --db-surface:   #13161C;
+  --db-surface2:  #181C24;
+  --db-border:    rgba(255,255,255,0.08);
+  --db-border2:   rgba(255,255,255,0.06);
+  --db-text:      #F8FAFC;
+  --db-muted:     #94A3B8;
+  --db-faint:     #64748B;
+  --db-inp-bg:    #1A1E28;
+  --db-hover:     #1E2330;
+  --db-active:    #212840;
+  --pill-rej-fg:  #F87171;
+  --pill-app-fg:  #34D399;
+  --pill-int-fg:  #818CF8;
+}
+[data-theme="light"] .modal-dialog {
+  --db-surface:   #FFFFFF;
+  --db-surface2:  #F8FAFF;
+  --db-border:    rgba(0,0,0,0.10);
+  --db-border2:   rgba(0,0,0,0.06);
+  --db-text:      #0F172A;
+  --db-muted:     #334155;
+  --db-faint:     #64748B;
+  --db-inp-bg:    #F8FAFF;
+  --db-hover:     #EEF2FF;
+  --db-active:    #E2E8F0;
+  --pill-rej-fg:  #E11D48;
+  --pill-app-fg:  #059669;
+  --pill-int-fg:  #6366F1;
+}
+
+/* Light mode: modal dialog text and inputs */
+[data-theme="light"] .modal-form input,
+[data-theme="light"] .modal-form select,
+[data-theme="light"] .modal-form textarea {
+  background: #F8FAFF;
+  border-color: rgba(0,0,0,0.12);
+  color: #0F172A;
+}
+[data-theme="light"] .modal-form input::placeholder,
+[data-theme="light"] .modal-form textarea::placeholder { color: #94A3B8; }
+[data-theme="light"] .modal-form select option {
+  background: #FFFFFF;
+  color: #0F172A;
+}
+[data-theme="light"] .delete-warning { color: #334155; }
+[data-theme="light"] .delete-warning strong { color: #0F172A; }
+[data-theme="light"] .modal-close { color: #64748B; }
+[data-theme="light"] .modal-close:hover { color: #0F172A; }
+[data-theme="light"] .btn-secondary {
+  background: transparent;
+  color: #475569;
+  border-color: rgba(0,0,0,0.15);
+}
+[data-theme="light"] .btn-secondary:hover { color: #0F172A; border-color: #64748B; }
+[data-theme="light"] .btn-danger-solid { background: #DC2626; border-color: #DC2626; }
+[data-theme="light"] .btn-danger-solid:hover:not(:disabled) { opacity: 0.9; }
+[data-theme="light"] .modal-alert.error {
+  background: rgba(225,29,72,0.08);
+  border-color: #E11D48;
+  color: #BE123C;
+}
+[data-theme="light"] .modal-actions {
+  border-top-color: rgba(0,0,0,0.10);
+}
+
+
+/* ==========================================================================
+   LIGHT MODE — misc contrast fixes
+   ========================================================================== */
+[data-theme="light"] .table-empty-row { color: #475569; }
+[data-theme="light"] .popover-item:hover { background: rgba(0,0,0,0.05); }
+[data-theme="light"] .row-action-popover { background: #FFFFFF; }
+[data-theme="light"] .glass-dropdown { background: #FFFFFF; }
+[data-theme="light"] .btn-refresh-pill { background: #FFFFFF; }
+[data-theme="light"] .btn-page { background: #FFFFFF; color: #334155; }
+[data-theme="light"] .footer-subtext { color: #64748B; }
+[data-theme="light"] .modal-error-banner { color: #BE123C; background: rgba(225,29,72,0.08); border-color: rgba(225,29,72,0.25); }
+[data-theme="light"] .count-pill { background: rgba(249,115,22,0.08); border-color: rgba(249,115,22,0.2); }
+[data-theme="light"] .apps-table thead th { background: rgba(0,0,0,0.02); }
+[data-theme="light"] .kpi-card:hover { box-shadow: 0 8px 28px -4px rgba(0,0,0,0.15); }
+[data-theme="light"] .section-subtitle { color: #64748B; }
+[data-theme="light"] .insight-description { color: #64748B; }
+[data-theme="light"] .activity-metric-summary { color: #64748B; }
