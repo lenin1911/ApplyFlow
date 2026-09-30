@@ -27,8 +27,9 @@ services:
         value: https://applyflow-frontend.onrender.com
 
   # React Frontend Static Site
-  - type: static
+  - type: web
     name: applyflow-frontend
+    env: static
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: ./frontend/dist
     envVars:
